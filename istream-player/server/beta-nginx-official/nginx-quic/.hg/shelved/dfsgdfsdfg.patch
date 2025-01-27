@@ -1,0 +1,29 @@
+# HG changeset patch
+# User shelve@localhost
+# Date 1659537816 21600
+#      Wed Aug 03 08:43:36 2022 -0600
+# Branch quic
+# Node ID e37fde99b6b8c568979cd73652dfa5ab7af88c30
+# Parent  3550b00d9dc8a307dbaa1aeb9f988cec2a08476a
+changes to: QUIC: avoided pool usage in token calculation.
+
+diff --git a/src/event/quic/ngx_event_quic_ack.c b/src/event/quic/ngx_event_quic_ack.c
+--- a/src/event/quic/ngx_event_quic_ack.c
++++ b/src/event/quic/ngx_event_quic_ack.c
+@@ -333,14 +333,14 @@
+     }
+ 
+     if (cg->window < cg->ssthresh) {
+-        cg->window += f->plen;
++        cg->window += f->plen / 2;
+ 
+         ngx_log_debug3(NGX_LOG_DEBUG_EVENT, c->log, 0,
+                        "quic congestion slow start win:%uz ss:%z if:%uz",
+                        cg->window, cg->ssthresh, cg->in_flight);
+ 
+     } else {
+-        cg->window += qc->tp.max_udp_payload_size * f->plen / cg->window;
++        cg->window += (qc->tp.max_udp_payload_size * f->plen / cg->window) / 2;
+ 
+         ngx_log_debug3(NGX_LOG_DEBUG_EVENT, c->log, 0,
+                        "quic congestion avoidance win:%uz ss:%z if:%uz",

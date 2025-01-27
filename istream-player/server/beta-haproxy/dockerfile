@@ -1,0 +1,43 @@
+FROM debian:bullseye-slim
+
+RUN mkdir /src
+WORKDIR /src
+
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt update
+RUN apt install -y git ca-certificates gcc libc6-dev \
+    liblua5.3-dev libpcre3-dev libssl-dev libsystemd-dev make wget zlib1g-dev socat
+
+# Install OpenSSL-quic
+RUN cd /src; \
+    git clone https://github.com/quictls/openssl; \
+    pwd && ls -al && cd openssl; \
+    mkdir -p /opt/quictls/ssl; \
+    ./Configure --libdir=lib --prefix=/opt/quictls; \
+    make; \
+    make install; \
+    echo /opt/quictls/lib | sudo tee -a /etc/ld.so.conf; \
+    ldconfig;
+
+# Install HAProxy
+RUN cd /src; \
+    git clone https://github.com/haproxy/haproxy.git && cd haproxy; \
+    make -j $(nproc) \
+        TARGET=linux-glibc \
+        USE_LUA=1 \
+        USE_OPENSSL=1 \
+        USE_PCRE=1 \
+        USE_ZLIB=1 \
+        USE_SYSTEMD=1 \
+        USE_PROMEX=1 \
+        USE_QUIC=1 \
+        SSL_INC=/opt/quictls/include \
+        SSL_LIB=/opt/quictls/lib \
+        LDFLAGS="-Wl,-rpath,/opt/quictls/lib";
+
+RUN cd /src/haproxy; \
+    make install-bin
+
+RUN apt install -y iproute2 procps tcpdump
+
+CMD ["haproxy", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]

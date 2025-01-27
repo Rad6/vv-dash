@@ -1,0 +1,116 @@
+diff -r 3550b00d9dc8 auto/cc/gcc
+--- a/auto/cc/gcc	Tue May 31 11:05:22 2022 +0400
++++ b/auto/cc/gcc	Wed Aug 10 09:51:35 2022 -0600
+@@ -166,7 +166,7 @@
+ 
+ 
+ # stop on warning
+-CFLAGS="$CFLAGS -Werror"
++CFLAGS="$CFLAGS"
+ 
+ # debug
+ CFLAGS="$CFLAGS -g"
+diff -r 3550b00d9dc8 src/event/quic/ngx_event_quic.h
+--- a/src/event/quic/ngx_event_quic.h	Tue May 31 11:05:22 2022 +0400
++++ b/src/event/quic/ngx_event_quic.h	Wed Aug 10 09:51:35 2022 -0600
+@@ -12,7 +12,7 @@
+ #include <ngx_core.h>
+ 
+ 
+-#define NGX_QUIC_MAX_UDP_PAYLOAD_SIZE        65527
++#define NGX_QUIC_MAX_UDP_PAYLOAD_SIZE        4094
+ 
+ #define NGX_QUIC_DEFAULT_ACK_DELAY_EXPONENT  3
+ #define NGX_QUIC_DEFAULT_MAX_ACK_DELAY       25
+diff -r 3550b00d9dc8 src/event/quic/ngx_event_quic_ack.c
+--- a/src/event/quic/ngx_event_quic_ack.c	Tue May 31 11:05:22 2022 +0400
++++ b/src/event/quic/ngx_event_quic_ack.c	Wed Aug 10 09:51:35 2022 -0600
+@@ -332,19 +332,27 @@
+         goto done;
+     }
+ 
+-    if (cg->window < cg->ssthresh) {
+-        cg->window += f->plen;
++    if ( qc->latest_rtt < 500 ) {
++        if (cg->window < cg->ssthresh) {
++            cg->window += f->plen/2;
+ 
+-        ngx_log_debug3(NGX_LOG_DEBUG_EVENT, c->log, 0,
+-                       "quic congestion slow start win:%uz ss:%z if:%uz",
+-                       cg->window, cg->ssthresh, cg->in_flight);
++            ngx_log_debug3(NGX_LOG_DEBUG_EVENT, c->log, 0,
++                        "quic congestion slow start win:%uz ss:%z if:%uz",
++                        cg->window, cg->ssthresh, cg->in_flight);
++
++        } else {
++            cg->window += (qc->tp.max_udp_payload_size * f->plen / cg->window)/2;
+ 
++            ngx_log_debug3(NGX_LOG_DEBUG_EVENT, c->log, 0,
++                        "quic congestion avoidance win:%uz ss:%z if:%uz",
++                        cg->window, cg->ssthresh, cg->in_flight);
++        }
+     } else {
+-        cg->window += qc->tp.max_udp_payload_size * f->plen / cg->window;
++        // cg->window /= 4;
++    }
+ 
+-        ngx_log_debug3(NGX_LOG_DEBUG_EVENT, c->log, 0,
+-                       "quic congestion avoidance win:%uz ss:%z if:%uz",
+-                       cg->window, cg->ssthresh, cg->in_flight);
++    if (cg->window > qc->tp.max_udp_payload_size * 10) {
++        cg->window = qc->tp.max_udp_payload_size * 10;
+     }
+ 
+     /* prevent recovery_start from wrapping */
+diff -r 3550b00d9dc8 src/event/quic/ngx_event_quic_streams.c
+--- a/src/event/quic/ngx_event_quic_streams.c	Tue May 31 11:05:22 2022 +0400
++++ b/src/event/quic/ngx_event_quic_streams.c	Wed Aug 10 09:51:35 2022 -0600
+@@ -719,6 +719,8 @@
+     cln->data = sc;
+ 
+     ngx_rbtree_insert(&qc->streams.tree, &qs->node);
++    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, c->log, 0,
++                   "beta added stream:0x%xL", qs->id);
+ 
+     return qs;
+ }
+@@ -1027,6 +1029,8 @@
+     ngx_quic_free_buffer(pc, &qs->recv);
+ 
+     ngx_rbtree_delete(&qc->streams.tree, &qs->node);
++    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, pc->log, 0,
++                   "beta removed stream:0x%xL", qs->id);
+     ngx_queue_insert_tail(&qc->streams.free, &qs->queue);
+ 
+     if (qc->closing) {
+@@ -1349,6 +1353,22 @@
+     return NGX_OK;
+ }
+ 
++void print_all_stream_ids(
++    ngx_connection_t *c,
++    ngx_rbtree_node_t  *node, 
++    ngx_rbtree_node_t  *sentinel) {
++    
++    ngx_quic_stream_t  *qn;
++
++    if (node == sentinel) return;
++
++    qn = (ngx_quic_stream_t *) node;
++    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, c->log, 0,
++                    "beta stream_id:0x%xL", qn->id);
++
++    print_all_stream_ids(c, node->left, sentinel);
++    print_all_stream_ids(c, node->right, sentinel);
++}
+ 
+ ngx_int_t
+ ngx_quic_handle_stop_sending_frame(ngx_connection_t *c,
+@@ -1366,6 +1386,7 @@
+         return NGX_ERROR;
+     }
+ 
++    print_all_stream_ids(c, qc->streams.tree.root, qc->streams.tree.sentinel);
+     qs = ngx_quic_get_stream(c, f->id);
+ 
+     if (qs == NULL) {

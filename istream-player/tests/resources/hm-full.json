@@ -1,0 +1,21 @@
+{
+    "data": [
+        {"focusAdapSet": [4] , "duration": 5},
+        {"focusAdapSet": [3], "duration": 2},
+        {"focusAdapSet": [5], "duration": 3},
+        {"focusAdapSet": [1, 4], "duration": 3},
+        {"focusAdapSet": [4, 7], "duration": 2},
+        {"focusAdapSet": [4], "duration": 1},
+        {"focusAdapSet": [0], "duration": 2},
+        {"focusAdapSet": [8], "duration": 2},
+        {"focusAdapSet": [7, 8], "duration": 5}, 
+        {"focusAdapSet": [0] , "duration": 1},
+        {"focusAdapSet": [0, 3], "duration": 5},
+        {"focusAdapSet": [6], "duration": 2},
+        {"focusAdapSet": [3, 6], "duration": 2},
+        {"focusAdapSet": [4], "duration": 5},
+        {"focusAdapSet": [4, 5], "duration": 10},
+        {"focusAdapSet": [6, 7], "duration": 5},
+        {"focusAdapSet": [0, 1], "duration": 5}
+    ]
+}
