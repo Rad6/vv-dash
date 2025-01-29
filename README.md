@@ -31,4 +31,4 @@ You can define any bandwidth scenario in the `ha-proxy/bw-config.json` file. Dur
 For the player help, please use the `entrypoint: ["iplay", "-h"]` entrypoint provided in the compose file which is commented out.
 
 ## Change DASH Parameters
-You can find and configure any of the DASH parameters (including buffer duration, minimum buffer level, smoothing factor, initial startup bandwidth, etc.) in [config file](/vv-dash/istream-player/istream_player/config/config.py).
+You can find and configure any of the DASH parameters (including buffer duration, minimum buffer level, smoothing factor, initial startup bandwidth, etc.) in [config file](/istream-player/istream_player/config/config.py).
