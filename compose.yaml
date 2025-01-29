@@ -9,7 +9,7 @@ services:
   istream-player:
     build: istream-player
     # entrypoint: ["iplay", "-h"]
-    entrypoint: ["iplay", "-i", "http://ha-proxy/longdress/output.mpd", "--run_dir", "run-dir", "--mod_abr", "bandwidth", "--mod_analyzer", "data_collector"]
+    entrypoint: ["iplay", "-i", "http://ha-proxy/longdress/output.mpd", "--mod_abr", "bandwidth", "--mod_analyzer", "playback_pc"]
     # deploy: 
     #   mode: replicated
     #   replicas: 2
@@ -27,9 +27,9 @@ services:
       - ha-proxy
     networks:
       mynetwork:
-    volumes:
-      - ~/Documents/hadi/setup/results:/src/run-dir:rw
-      - ~/Documents/hadi/setup/plots:/src/plot-dir:rw
+    # volumes:
+    #   - ~/your/local/directory:/src/run-dir:rw
+    #   - ~/your/local/directory:/src/plot-dir:rw
   ha-proxy:
     build: ha-proxy
     ports:

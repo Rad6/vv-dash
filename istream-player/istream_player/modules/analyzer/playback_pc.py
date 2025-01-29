@@ -12,7 +12,7 @@ import time
 from typing import Dict, Optional, Tuple
 from os.path import basename
 # import cv2
-# import numpy as np
+import numpy as np
 import DracoPy
 import open3d as o3d
 from concurrent.futures import ThreadPoolExecutor
@@ -90,6 +90,7 @@ class Playback_pc(
         self.dump_results_path = join(config.run_dir, "data") if config.run_dir else None
         self.manager = multiprocessing.Manager()
         self.time_intervals = self.manager.list()
+        self.tmc2rs_dir = config.tmc2_decoder_path
 
 
     async def run(self) -> None:
@@ -106,7 +107,7 @@ class Playback_pc(
         #         self.frame_buffer
         #     )
         # )
-        # self.player_task = asyncio.create_task(asyncio.to_thread(self.player))
+        self.player_task = asyncio.create_task(asyncio.to_thread(self.player))
 
 
     async def cleanup(self) -> None:
@@ -146,10 +147,10 @@ class Playback_pc(
     async def on_segment_download_complete(self, index: int, segments: Dict[int, Segment]):
         assert len(segments) == 1, f"Can play only 1 stream. Found {len(segments)}"
 
-
-        timescale, frames = parse_drv(BytesIO(self.segment_data[list(segments.values())[0].url]))
-
-        if self.mpd_provider.mpd.adaptation_sets[0].representations[0].codecs is "DRCO":
+        print(self.mpd_provider.mpd.adaptation_sets[1].representations[1].codecs)
+        print(type(self.mpd_provider.mpd.adaptation_sets[1].representations[1].codecs))
+        if self.mpd_provider.mpd.adaptation_sets[1].representations[1].codecs == "DRCO":
+            timescale, frames = parse_drv(BytesIO(self.segment_data[list(segments.values())[0].url]))
             procs = []
             for pts, frame in frames.items():
                 p = multiprocessing.Process(target=self.decoder, args=(index, pts, frame, ))
@@ -157,14 +158,25 @@ class Playback_pc(
                 procs.append(p)
             for p in procs:
                 p.join()
-        elif self.mpd_provider.mpd.adaptation_sets[0].representations[0].codecs is "VPCC":
+        elif self.mpd_provider.mpd.adaptation_sets[1].representations[1].codecs == "VPCC":
+            frame_rate = self.mpd_provider.mpd.adaptation_sets[1].frame_rate.split("/")
 
-            for pts, content in frames.items():
-                with open(f"./file{pts}.bin", "wb") as f:
-                    pickle.dump(content, f)
+            fps = int(int(frame_rate[0])/int(frame_rate[1]))
 
-            for pts, content in frames.items():
-                    
+            print(f"Frame rate: {fps} fps")
+
+            timescale, frames = parse_drv(BytesIO(self.segment_data[list(segments.values())[0].url]))
+
+            tmc2rs_in_dir = os.path.join(self.tmc2rs_dir, "in")
+            tmc2rs_out_dir = os.path.join(self.tmc2rs_dir, "out")
+
+            self.ensure_empty_directory(tmc2rs_in_dir)
+            self.ensure_empty_directory(tmc2rs_out_dir)
+            
+            for pts, seg in frames.items():
+                with open(os.path.join(tmc2rs_in_dir, f"seg{pts}.bin"), "wb") as f:
+                    pickle.dump(seg, f)
+
                 command = [
                 "cargo",
                 "run",
@@ -172,21 +184,36 @@ class Playback_pc(
                 "decoder",
                 "--",
                 "-i",
-                f"./file{pts}.bin",
+                f"{tmc2rs_in_dir}/seg{pts}.bin",
                 "-o",
-                "."
+                f"{tmc2rs_out_dir}"
                 ]
 
                 try:
                     # Run the command
-                    result = subprocess.run(command, check=True, capture_output=True, text=True)
+                    result = subprocess.run(command, check=True, capture_output=True, text=True, cwd=self.tmc2rs_dir)
                     
                     # Print the output
                     print("Command executed successfully!")
                     print("Output:", result.stdout)
                     print("Error (if any):", result.stderr)
-                    
-                    self.frame_buffer.put((index, pts, decoded_frame))
+                    ply_files = [f for f in sorted(os.listdir(tmc2rs_out_dir)) if f.endswith('.ply')]
+                    if not ply_files:
+                        print("No .ply files found in the directory.")
+                        return
+                    for ply_file in enumerate(ply_files):
+                        ply_path = os.path.join(tmc2rs_out_dir, ply_file)
+                        
+                        point_cloud = o3d.geometry.PointCloud()
+                        # Load the point cloud from the .ply file
+                        pcd = o3d.io.read_point_cloud(ply_path)
+                        
+                        # Update the geometry
+                        point_cloud.points = pcd.points
+                        point_cloud.colors = pcd.colors if pcd.has_colors() else None
+
+                        self.frame_buffer.put((index, pts, point_cloud, "VPCC"))
+                        os.remove(ply_path)
                 except subprocess.CalledProcessError as e:
                     print("Command failed with error code", e.returncode)
                     print("Error output:", e.stderr)
@@ -206,7 +233,7 @@ class Playback_pc(
 
         decoded_frame = DracoPy.decode(frame_content)
         print(f"DECODED FRAME {pts}")
-        self.frame_buffer.put((index, pts, decoded_frame))
+        self.frame_buffer.put((index, pts, decoded_frame, "DRCO"))
         # print("DECODED WITH PID: " + str(os.getpid()))
         
 
@@ -222,8 +249,8 @@ class Playback_pc(
 
         ctr = vis.get_view_control()
 
-        frame_data = self.frame_buffer.get()
-        vis.add_geometry(self.to_pointcloud(frame_data), reset_bounding_box=True)
+        index, pts, frame_data, codec = self.frame_buffer.get()
+        vis.add_geometry(frame_data if codec=="DRCO" else self.to_pointcloud(frame_data), reset_bounding_box=True)
 
         while True:
             time.sleep(0.0001)
@@ -234,8 +261,8 @@ class Playback_pc(
                 curr_frame_num = frame_num
                 vis.clear_geometries()
 
-                frame_data = self.frame_buffer.get()
-                vis.add_geometry(self.to_pointcloud(frame_data), reset_bounding_box=True)
+                index, pts, frame_data, codec = self.frame_buffer.get()
+                vis.add_geometry(frame_data if codec=="DRCO" else self.to_pointcloud(frame_data), reset_bounding_box=True)
 
 
     def to_pointcloud (self, frame_data):
@@ -246,3 +273,26 @@ class Playback_pc(
         pcd.colors = o3d.utility.Vector3dVector(frame_data.colors.astype(np.float32)/255)
         return pcd
 
+    def ensure_empty_directory(self, directory_path):
+        """
+        Ensure the directory exists and is empty. If it doesn't exist, create it. If it exists, empty it.
+        
+        Args:
+            directory_path (str): Path to the directory.
+        """
+        if not os.path.exists(directory_path):
+            # Create the directory if it doesn't exist
+            os.makedirs(directory_path)
+            print(f"Directory created: {directory_path}")
+        else:
+            # Empty the directory if it exists
+            for filename in os.listdir(directory_path):
+                file_path = os.path.join(directory_path, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)  # Remove file or symbolic link
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)  # Remove directory
+                except Exception as e:
+                    print(f"Failed to delete {file_path}. Reason: {e}")
+            print(f"Directory emptied: {directory_path}")

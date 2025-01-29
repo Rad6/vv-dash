@@ -20,9 +20,10 @@ dependencies = [
     "pyequilib",
     "opencv-python",
     "scikit-build",
-    # "torch",
+    "torch",
     "DracoPy",
-    "open3d"
+    "open3d",
+    "gurobipy",
     "pyomo",
     "numpy==1.26.4"
 ]

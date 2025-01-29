@@ -86,16 +86,16 @@ COPY nginx.conf /usr/local/nginx/conf
 # RUN mkdir /usr/local/nginx/html/ricardo/
 # COPY videos/ricardo-ds/* /usr/local/nginx/html/ricardo/
 
-RUN mkdir /usr/local/nginx/html/phil/
-COPY videos/phil/* /usr/local/nginx/html/phil/
+# RUN mkdir /usr/local/nginx/html/phil/
+# COPY videos/phil/* /usr/local/nginx/html/phil/
 
 
 # RUN mkdir /usr/local/nginx/html/phil/
 # COPY videos/phil-par/* /usr/local/nginx/html/phil/
 
 
-# RUN mkdir /usr/local/nginx/html/longdress/
-# COPY videos/longdress/* /usr/local/nginx/html/longdress/
+RUN mkdir /usr/local/nginx/html/longdress-vpcc/
+COPY videos/longdress/* /usr/local/nginx/html/longdress/
 
 
 # RUN mkdir /usr/local/nginx/html/longdress-1/

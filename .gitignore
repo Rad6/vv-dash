@@ -1,0 +1,4 @@
+./vscode
+
+dash-server/videos/*
+!dash-server/videos/.gitkeep

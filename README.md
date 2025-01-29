@@ -8,7 +8,7 @@
 docker compose build
 ```
 
-When using V-PCC coded videos, please make sure you have TMC2-RS decoder installed ([from this link](https://github.com/benclmnt/tmc2-rs)).
+When using V-PCC coded videos, please make sure you have TMC2-RS decoder built ([from this link](https://github.com/benclmnt/tmc2-rs)) and then put the entire directory in the istream-player directory.
 
 ## How to run
 
@@ -29,3 +29,6 @@ You can define any bandwidth scenario in the `ha-proxy/bw-config.json` file. Dur
 ```
 ## Player Documentation
 For the player help, please use the `entrypoint: ["iplay", "-h"]` entrypoint provided in the compose file which is commented out.
+
+## Change DASH Parameters
+You can find and configure any of the DASH parameters (including buffer duration, minimum buffer level, smoothing factor, initial startup bandwidth, etc.) in [config file](/vv-dash/istream-player/istream_player/config/config.py).

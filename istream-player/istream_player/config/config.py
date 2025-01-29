@@ -130,6 +130,8 @@ class PlayerConfig:
     pool_gap = 0.02 # gap to optimality
     output_flag = 0 # 0: no output details, 1: output details
 
+    tmc2_decoder_path = "./tmc2-rs-main"
+
 
     def validate(self) -> None:
         """Assert if config properties are set properly"""

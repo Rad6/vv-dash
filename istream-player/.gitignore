@@ -209,5 +209,7 @@ third_party
 
 .vscode/
 
+tmc2-rs-main
+
 # volumetic video test files - too large
 vv/
