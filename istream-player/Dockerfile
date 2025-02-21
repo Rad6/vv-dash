@@ -18,10 +18,10 @@ ENV headless=true
 
 RUN pip install --upgrade pip
 
-RUN git submodule update
+# RUN git submodule update
 RUN pip install .
 
-RUN mkdir run-dir
+RUN [ ! -e /run-dir ] && mkdir /run-dir || echo "Directory exists"
 
 RUN mkdir plot-dir
 

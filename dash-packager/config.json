@@ -1,0 +1,12 @@
+{
+    "frameRate": "30/1",
+    "mediaPresentationDuration": "PT10.0S",
+    "maxSegmentDuration": "PT1.0S",
+    "initialization_template": "init-stream$RepresentationID$.dvv",
+    "media_template": "chunk-stream$RepresentationID$-$Number%05d$.dvv",
+    "num_segments": 10,
+    "bitrates": [310000000, 432000000, 570000000, 745000000, 976000000],
+    "segment_timescale": 12288,
+    "segment_duration": 12288,
+    "output_file": "../dash-server/videos/longdress/output.mpd"
+}

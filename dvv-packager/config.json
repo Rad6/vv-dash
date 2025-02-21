@@ -1,0 +1,7 @@
+{
+    "start_frame": 1,
+    "end_frame": 300,
+    "fps": 30,
+    "frame_path_template": "../encoder/draco/encoded/longdress/stream{rate}-frame{frame}.drc",
+    "output_path_template": "../dash-server/videos/longdress/chunk-stream{rate}-{chunk_number}.dvv"
+}

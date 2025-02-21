@@ -5,6 +5,7 @@ import logging
 import math
 import multiprocessing
 from pprint import pprint
+import shutil
 import sys
 from asyncio import create_subprocess_exec
 from asyncio.subprocess import PIPE
@@ -238,31 +239,31 @@ class Playback_pc(
         
 
     def player(self):
-        # pass
+        pass
         # Read frames from self.frame_buffer
         # Update frame in window
 
-        vis = o3d.visualization.Visualizer()
-        vis.create_window()
-        curr_frame_num = -1
-        start_time = time.time()
+        # vis = o3d.visualization.Visualizer()
+        # vis.create_window()
+        # curr_frame_num = -1
+        # start_time = time.time()
 
-        ctr = vis.get_view_control()
+        # ctr = vis.get_view_control()
 
-        index, pts, frame_data, codec = self.frame_buffer.get()
-        vis.add_geometry(frame_data if codec=="DRCO" else self.to_pointcloud(frame_data), reset_bounding_box=True)
+        # index, pts, frame_data, codec = self.frame_buffer.get()
+        # vis.add_geometry(frame_data if codec=="DRCO" else self.to_pointcloud(frame_data), reset_bounding_box=True)
 
-        while True:
-            time.sleep(0.0001)
-            vis.poll_events()
-            vis.update_renderer()
-            frame_num = math.floor((time.time() - start_time)*self.fps)
-            if frame_num != curr_frame_num:
-                curr_frame_num = frame_num
-                vis.clear_geometries()
+        # while True:
+        #     time.sleep(0.0001)
+        #     vis.poll_events()
+        #     vis.update_renderer()
+        #     frame_num = math.floor((time.time() - start_time)*self.fps)
+        #     if frame_num != curr_frame_num:
+        #         curr_frame_num = frame_num
+        #         vis.clear_geometries()
 
-                index, pts, frame_data, codec = self.frame_buffer.get()
-                vis.add_geometry(frame_data if codec=="DRCO" else self.to_pointcloud(frame_data), reset_bounding_box=True)
+        #         index, pts, frame_data, codec = self.frame_buffer.get()
+        #         vis.add_geometry(frame_data if codec=="DRCO" else self.to_pointcloud(frame_data), reset_bounding_box=True)
 
 
     def to_pointcloud (self, frame_data):

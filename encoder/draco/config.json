@@ -1,0 +1,14 @@
+{
+    "encoding_parameters": {
+        "1": [10, 7, 6],
+        "2": [8, 9, 8],
+        "3": [6, 11, 10],
+        "4": [4, 13, 12],
+        "5": [2, 15, 14]
+    },
+    "start_frame": 1051,
+    "frame_count": 300,
+    "video_path": "../../pc-video/longdress/Ply",
+    "frame_naming_template": "longdress_vox10_{frame_number}.ply",
+    "output_folder": "./encoded/longdress"
+}

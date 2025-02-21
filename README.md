@@ -3,12 +3,16 @@
 
 ## How to build
 
+If you're aiming to use Google Draco, please make sure you have [Google Draco](https://github.com/google/draco), and if you're aiming to use V-PCC, please sure you have [TMC2 V-PCC encoder](https://github.com/MPEGGroup/mpeg-pcc-tmc2) and [TMS2-RS V-PCC Fast Decoder](https://github.com/benclmnt/tmc2-rs) built on your system (in the same directory as VV-DASH).
+
+VV-DASH supports any point cloud-based videos. Please download your videos (for instance, from [8i VFB dataset](https://plenodb.jpeg.org/pc/8ilabs)) and then place them in ./pc-video directory.
+
+For preparing the encoded video bitrate ladder pipeline, please follow this order encoder -> dvv-packager -> dash-packager. (each include their own config file for customizations)
+
 ```bash
 # Build all modules
 docker compose build
 ```
-
-When using V-PCC coded videos, please make sure you have TMC2-RS decoder built ([from this link](https://github.com/benclmnt/tmc2-rs)) and then put the entire directory in the istream-player directory.
 
 ## How to run
 
