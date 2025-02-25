@@ -23,8 +23,6 @@ from istream_player.core.player import Player, PlayerEventListener
 from istream_player.core.scheduler import Scheduler, SchedulerEventListener
 from istream_player.models import State
 from istream_player.models.mpd_objects import Segment
-import pdb
-from collections import defaultdict
 
 
 @dataclass
@@ -34,7 +32,6 @@ class AnalyzerSegment:
     repr_id: int
     adap_set_id: int
     bitrate: int
-    buffer_level: int
     duration: float
     init_url: Optional[str]
 
@@ -44,7 +41,6 @@ class AnalyzerSegment:
     first_byte_at: Optional[float] = None
     last_byte_at: Optional[float] = None
 
-    fov_group_id: Optional[int] = None
     quality: Optional[int] = None
     segment_throughput: Optional[float] = None
     adaptation_throughput: Optional[float] = None
@@ -97,9 +93,6 @@ class PlaybackAnalyzer(
         self._stalls: List[Stall] = []
         self._first_segment = float("inf")
         self._last_segment = 0
-        self._tile_segment_throughputs: Dict[Tuple[int,int], float] = {} #[segment_index, tile_number] -> throughput
-        self._tile_segment_quality: Dict[Tuple[int,int], int] = {} #[segment_index, tile_number] -> quality
-        self._tile_segment_dl_time: Dict[Tuple[int,int], float] = {} #[segment_index, tile_number] -> download time
 
         self.live_plot = float(live_plot) if live_plot is not None else None
 
@@ -133,12 +126,6 @@ class PlaybackAnalyzer(
             traceback.print_exc(file=sys.stdout)
             self.log.error(f"Failed to save analysis : {e}")
 
-    def find_key_for_value(self, d, value):
-        for key, values_list in d.items():
-            if value in values_list:
-                return key
-        return None
-
     def to_relative_time(self, t: float):
         return t - self._start_time
 
@@ -163,15 +150,14 @@ class PlaybackAnalyzer(
                 url=segment.url,
                 init_url=segment.init_url,
                 repr_id=segment.repr_id,
-                adap_set_id=as_id, #tile_number -- starts from 0
+                adap_set_id=as_id,
                 adaptation_throughput=adap_bw[as_id],
                 quality=segment.quality,
                 bitrate=segment.bitrate,
                 duration=segment.duration,
-                buffer_level=0,
             )
 
-    async def on_segment_download_complete(self, index: int, segments: Dict[int, Segment]): 
+    async def on_segment_download_complete(self, index: int, segments: Dict[int, Segment]):
         for segment in segments.values():
             stat = self.bandwidth_meter.get_stats(segment.url)
             assert (
@@ -193,38 +179,6 @@ class PlaybackAnalyzer(
             analyzer_segment.stopped_bytes = stat.stopped_bytes
 
             analyzer_segment.segment_throughput = (stat.received_bytes * 8) / (stat.stop_time - stat.start_time)
-        if self.live_plot is not None and self.plots_dir is not None:
-            self.save_plots(window=self.live_plot)
-
-    async def on_segment_tile_download_complete(self, index: int, segments: Dict[int, Segment], fov_groups: Dict[int, List[int]]): 
-        for segment in segments.values():
-            stat = self.bandwidth_meter.get_stats(segment.url)
-            assert (
-                stat.stop_time is not None
-                and stat.start_time is not None
-                and stat.first_byte_at is not None
-                and stat.last_byte_at is not None
-            )
-            analyzer_segment = self._segments_by_url[segment.url]
-            fov_group_id = self.find_key_for_value(fov_groups, segment.as_id)
-            analyzer_segment.fov_group_id = fov_group_id
-
-            analyzer_segment.stop_time = self.to_relative_time(stat.stop_time)
-            analyzer_segment.start_time = self.to_relative_time(stat.start_time)
-            analyzer_segment.dl_time = analyzer_segment.stop_time - analyzer_segment.start_time
-            analyzer_segment.first_byte_at = self.to_relative_time(stat.first_byte_at)
-            analyzer_segment.last_byte_at = self.to_relative_time(stat.last_byte_at)
-
-            analyzer_segment.received_bytes = stat.received_bytes
-            analyzer_segment.total_bytes = stat.total_bytes
-            analyzer_segment.stopped_bytes = stat.stopped_bytes
-
-            analyzer_segment.segment_throughput = (stat.received_bytes * 8) / (stat.stop_time - stat.start_time)
-            self._tile_segment_throughputs[index, segment.as_id] = analyzer_segment.segment_throughput 
-            self._tile_segment_quality[segment.as_id, index, fov_group_id] = segment.quality
-            self._tile_segment_dl_time[index, segment.as_id] = analyzer_segment.dl_time
-            analyzer_segment.buffer_level = self._buffer_levels[-1].level
-
         if self.live_plot is not None and self.plots_dir is not None:
             self.save_plots(window=self.live_plot)
 
@@ -233,51 +187,8 @@ class PlaybackAnalyzer(
         self._throughputs.append(entry)
         self._cont_bw.append(entry)
 
-    def get_tile_segment_throughput(self) -> Dict[Tuple[int,int], float]:
-        return self._tile_segment_throughputs
-    
-    def get_tile_segment_dl_time(self) -> Dict[Tuple[int,int], float]:
-        return self._tile_segment_dl_time
-    
-    def get_stalls_number(self) -> List[Stall]:
-        buffering_start = None
-        self._stalls = []
-        startup_delay = None
-        total_stall_num = 0
-        for time, state, position in self._states:
-            if state == State.BUFFERING and buffering_start is None:
-                buffering_start = time
-
-            elif state == State.READY and buffering_start is not None:
-                duration = time - buffering_start
-
-                if startup_delay is None:
-                    startup_delay = duration
-                else:
-                    self._stalls.append(Stall(buffering_start, time))
-                    total_stall_num += 1
-                buffering_start = None
-        return total_stall_num
-
-    def calculate_average_metric_tiles(self, tile_metrics_data, fov_id) -> Dict[int, float]:
-        tile_metrics_data_fov = {key: value for key, value in tile_metrics_data.items() if key[2] == fov_id}
-        # Aggregate values by the first part of the key (tile number)
-        aggregated_metrics = defaultdict(list)
-        for key, value in tile_metrics_data_fov.items():
-            aggregated_metrics[key[0]].append(value)
-        # Calculate the average quality for each tile
-        tile_fov_average_metrics = {key: round(sum(values) / len(values), 3) for key, values in aggregated_metrics.items()}
-        sorted_tile_fov_average_metrics = dict(sorted(tile_fov_average_metrics.items()))
-        return sorted_tile_fov_average_metrics
-    
-
     def save(self, output: io.TextIOBase | TextIO) -> None:
-        bitrates = {}
-        dl_times = {}
-        prev_tile_quality = {}
-        curr_tile_quality = {}
-        tile_quality_switches = {i: 0 for i in range(1, PlayerConfig.tile_number + 1)}
-        tile_quality_switches_fov = {i: 0 for i in range(1, PlayerConfig.tile_number + 1)}
+        bitrates = []
 
         last_quality = None
         quality_switches = 0
@@ -299,29 +210,10 @@ class PlaybackAnalyzer(
             if last_quality is None:
                 # First segment
                 last_quality = segment.quality
-                prev_tile_quality[(segment.index, segment.adap_set_id, segment.fov_group_id)] = segment.quality
-           
             else:
                 if last_quality != segment.quality:
                     last_quality = segment.quality
-                    quality_switches += 1 #segment quality switches
-                
-                
-                # tile quality switches:
-                prev_tile_keys = list(prev_tile_quality.keys())
-                for fov_id in range(1, PlayerConfig.fov_groups_number + 1):
-                    search_key = (segment.index - 1, segment.adap_set_id, fov_id) #search for fov group 1, 2, 3
-                    if search_key in prev_tile_keys:
-                        index_key = prev_tile_keys.index(search_key)
-                        if segment.quality < prev_tile_quality[prev_tile_keys[index_key]]:
-                            tile_quality_switches[segment.adap_set_id + 1] += 1
-                # tile quality switches for fov group 1:
-                search_key_fov = (segment.index - 1, segment.adap_set_id, 1) #search for fov group 1
-                if search_key_fov in prev_tile_keys:
-                    index_key_fov = prev_tile_keys.index(search_key_fov)
-                    if segment.quality < prev_tile_quality[prev_tile_keys[index_key_fov]]:
-                        tile_quality_switches_fov[segment.adap_set_id + 1] += 1
-            
+                    quality_switches += 1
             output.write(
                 "%-10d%-10.2f%-10.2f%-10d%-10d%-10d%-10d%-10.2f%-20s\n"
                 % (
@@ -336,11 +228,9 @@ class PlaybackAnalyzer(
                     segment.url,
                 )
             )
-            bitrates[(segment.adap_set_id+1, segment.index, segment.fov_group_id)] = segment.bitrate
-            dl_times[(segment.adap_set_id+1, segment.index, segment.fov_group_id)] = segment.dl_time
-            prev_tile_quality[(segment.index, segment.adap_set_id, segment.fov_group_id)] = segment.quality
-           
+            bitrates.append(segment.bitrate)
         output.write("\n")
+
         # Stalls
         output.write("Stalls:\n")
         output.write("%-6s%-6s%-6s\n" % ("Start", "End", "Duration"))
@@ -368,69 +258,12 @@ class PlaybackAnalyzer(
         output.write(f"Number of Stalls: {total_stall_num}\n")
         output.write(f"Total seconds of stalls: {total_stall_duration}\n")
 
-        # Average Buffer Level
-        average_buffer_level = sum([buffer.level for buffer in self._buffer_levels]) / len(self._buffer_levels) if len(self._buffer_levels) > 0 else 0
-        output.write(f"Average Buffer Level: {average_buffer_level:.2f} s\n")
-
         # Average bitrate
-        average_bitrate = sum(bitrates.values()) / len(bitrates) if len(bitrates) > 0 else 0
-        output.write(f"Average bitrate: {average_bitrate} bps\n")
-
-        # Average bitrate for FoV group 1
-        average_bitrate_fov_1 = self.calculate_average_metric_tiles(bitrates, 1)
-        output.write(f"Average Bitrates for FoV 1 : {average_bitrate_fov_1} \n ")
-
-        # Average bitrate for FoV group 2
-        average_bitrate_fov_2 = self.calculate_average_metric_tiles(bitrates, 2)
-        output.write(f"Average Bitrates for FoV 2 : {average_bitrate_fov_2} \n ")
-
-        # Average bitrate for FoV group 3
-        average_bitrate_fov_3 = self.calculate_average_metric_tiles(bitrates, 3)
-        output.write(f"Average Bitrates for FoV 3 : {average_bitrate_fov_3} \n ")
-
-        # Average download time
-        average_dl_time = sum(dl_times.values()) / len(dl_times) if len(dl_times) > 0 else 0
-        output.write(f"Average download time: {average_dl_time:.2f} s\n")
-
-        # Average download time for FoV group 1
-        average_dl_time_fov_1 = self.calculate_average_metric_tiles(dl_times, 1)
-        output.write(f"Average Download Times for FoV 1 : {average_dl_time_fov_1} \n ")
-
-        # Average download time for FoV group 2
-        average_dl_time_fov_2 = self.calculate_average_metric_tiles(dl_times, 2)
-        output.write(f"Average Download Times for FoV 2 : {average_dl_time_fov_2} \n ")
-
-        # Average download time for FoV group 3
-        average_dl_time_fov_3 = self.calculate_average_metric_tiles(dl_times, 3)
-        output.write(f"Average Download Times for FoV 3 : {average_dl_time_fov_3} \n ")
-
-        # Minimum download time
-        min_dl_time = min(dl_times.values()) if len(dl_times) > 0 else 0
-        min_dl_time_segment = min(dl_times, key=dl_times.get) if len(dl_times) > 0 else None
-        output.write(f"Minimum download time - segment {min_dl_time_segment[0]} and tile {min_dl_time_segment[1]}: {min_dl_time:.2f} s\n")
-
-        # Maximum download time
-        max_dl_time = max(dl_times.values()) if len(dl_times) > 0 else 0
-        max_dl_time_segment = max(dl_times, key=dl_times.get) if len(dl_times) > 0 else None
-        output.write(f"Maximum download time - segment {max_dl_time_segment[0]} and tile {max_dl_time_segment[1]}: {max_dl_time:.2f} s\n")
+        average_bitrate = sum(bitrates) / len(bitrates) if len(bitrates) > 0 else 0
+        output.write(f"Average bitrate: {average_bitrate:.2f} bps\n")
 
         # Number of quality switches
         output.write(f"Number of quality switches: {quality_switches}\n")
-
-        # Number of tile quality switches
-        output.write(f"Number of tile quality switches: {tile_quality_switches}\n")
-
-        # Number of tile quality switches for fov group 1
-        output.write(f"Number of tile quality switches for fov group 1: {tile_quality_switches_fov}\n")
-
-        average_tile_zone1_quality = self.calculate_average_metric_tiles(self._tile_segment_quality, 1)
-        output.write(f"Average Tile Qualities for FoV group 1 : {average_tile_zone1_quality} \n ")
-
-        average_tile_zone2_quality = self.calculate_average_metric_tiles(self._tile_segment_quality, 2)
-        output.write(f"Average Tile Qualities for FoV group 2 : {average_tile_zone2_quality} \n ")
-
-        average_tile_zone3_quality = self.calculate_average_metric_tiles(self._tile_segment_quality, 3)
-        output.write(f"Average Tile Qualities for FoV group 3 : {average_tile_zone3_quality} \n ")
 
         if self.plots_dir is not None:
             self.save_plots()
@@ -441,28 +274,10 @@ class PlaybackAnalyzer(
             total_stall_duration,
             total_idle_duration,
             startup_delay,
-            average_buffer_level,
             average_bitrate,
-            average_bitrate_fov_1,
-            average_bitrate_fov_2,
-            average_bitrate_fov_3,
-            average_dl_time,
-            average_dl_time_fov_1,
-            average_dl_time_fov_2,
-            average_dl_time_fov_3,
-            min_dl_time,
-            min_dl_time_segment,
-            max_dl_time,
-            max_dl_time_segment,
             quality_switches,
-            tile_quality_switches,
-            tile_quality_switches_fov,
-            average_tile_zone1_quality,
-            average_tile_zone2_quality,
-            average_tile_zone3_quality,
             self._states,
             self._cont_bw,
-            
         )
 
     def dump_results(
@@ -472,25 +287,8 @@ class PlaybackAnalyzer(
         dur_stall,
         dur_idle,
         startup_delay,
-        average_buffer_level,
-        average_bitrate,
-        average_bitrate_fov_1,
-        average_bitrate_fov_2,
-        average_bitrate_fov_3,
-        average_dl_time,
-        average_dl_time_fov_1,
-        average_dl_time_fov_2,
-        average_dl_time_fov_3,
-        min_dl_time,
-        min_dl_time_segment,
-        max_dl_time,
-        max_dl_time_segment,
+        avg_bitrate,
         num_quality_switches,
-        tile_quality_switches,
-        tile_quality_switches_fov,
-        average_tile_zone1_quality,
-        average_tile_zone2_quality,
-        average_tile_zone3_quality,  
         states,
         cont_bw,
     ):
@@ -501,25 +299,8 @@ class PlaybackAnalyzer(
             "dur_stall": dur_stall,
             "dur_idle": dur_idle,
             "startup_delay": startup_delay,
-            "average_buffer_level": average_buffer_level,
-            "avg_bitrate": average_bitrate,
-            "average_bitrate_fov_1": average_bitrate_fov_1,
-            "average_bitrate_fov_2": average_bitrate_fov_2,
-            "average_bitrate_fov_3": average_bitrate_fov_3,
-            "average_dl_time": average_dl_time,
-            "average_dl_time_fov_1": average_dl_time_fov_1,
-            "average_dl_time_fov_2": average_dl_time_fov_2,
-            "average_dl_time_fov_3": average_dl_time_fov_3,
-            "min_dl_time": min_dl_time,
-            "min_dl_time_segment": min_dl_time_segment,
-            "max_dl_time": max_dl_time,
-            "max_dl_time_segment": max_dl_time_segment,
+            "avg_bitrate": avg_bitrate,
             "num_quality_switches": num_quality_switches,
-            "tile_quality_switches": tile_quality_switches,
-            "tile_quality_switches_fov": tile_quality_switches_fov,
-            "average_tile_zone1_quality": average_tile_zone1_quality,
-            "average_tile_zone2_quality": average_tile_zone2_quality,
-            "average_tile_zone3_quality": average_tile_zone3_quality,
             "states": [{"time": time, "state": str(state), "position": pos} for time, state, pos in states],
             "bandwidth_estimate": [{"time": bw[0], "bandwidth": bw[1]} for bw in cont_bw],
             "buffer_level": list(map(asdict, self._buffer_levels)),

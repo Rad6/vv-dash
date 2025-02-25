@@ -1,15 +1,17 @@
 
 services:
   dash-server:
-    build: dash-server
+    image: hadirad/vvdash-server:latest
+    # build: dash-server
     ports:
       - "2020:80"
     networks:
       mynetwork:
   istream-player:
-    build: istream-player
+    image: hadirad/vvdash-client:latest
+    # build: istream-player
     # entrypoint: ["iplay", "-h"]
-    entrypoint: ["iplay", "-i", "http://ha-proxy/longdress/output.mpd", "--mod_abr", "bandwidth", "--mod_analyzer", "playback_pc"]
+    entrypoint: ["iplay", "-i", "http://ha-proxy/longdress/output.mpd", "--mod_abr", "bandwidth", "--mod_analyzer", "data_collector"]
     # deploy: 
     #   mode: replicated
     #   replicas: 2
@@ -31,7 +33,8 @@ services:
     #   - ~/your/local/directory:/src/run-dir:rw
     #   - ~/your/local/directory:/src/plot-dir:rw
   ha-proxy:
-    build: ha-proxy
+    image: hadirad/vvdash-haproxy:latest
+    # build: ha-proxy
     ports:
       - "9090:80"
       - "8404:8404"

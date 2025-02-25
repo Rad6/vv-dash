@@ -16,15 +16,16 @@ dependencies = [
     "m3u8",
     "pygments",
     "pyav",
-    "pygame",
+    # "pygame",
     "pyequilib",
-    "opencv-python",
-    "scikit-build",
-    "torch",
+    # "opencv-python",
+    # "scikit-build",
+    # "torch",
     "DracoPy",
+    "PyOpenGL",
     "open3d",
-    "gurobipy",
-    "pyomo",
+    # "gurobipy",
+    # "pyomo",
     "numpy==1.26.4"
 ]
 

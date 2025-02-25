@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, Optional, Type, TypedDict
 
 from istream_player.config.config import PlayerConfig
 from istream_player.core.module import Module, ModuleInterface
-from istream_player.modules.abr.abr_360_hm import ABR360HeadMovement
+# from istream_player.modules.abr.abr_360_hm import ABR360HeadMovement
 from istream_player.modules.abr.abr_bandwidth import BandwidthABRController
 from istream_player.modules.abr.abr_buffer import BufferABRController
 from istream_player.modules.abr.abr_dash import DashABRController
@@ -18,7 +18,7 @@ from istream_player.modules.analyzer.analyzer import PlaybackAnalyzer
 from istream_player.modules.analyzer.event_logger import EventLogger
 from istream_player.modules.analyzer.file_content_listener import FileContentListener
 from istream_player.modules.analyzer.network_manager import NetworkManager
-from istream_player.modules.analyzer.playback import Playback
+# from istream_player.modules.analyzer.playback import Playback
 from istream_player.modules.analyzer.playback_pc import Playback_pc
 from istream_player.modules.analyzer.playback_v2 import PlaybackV2
 from istream_player.modules.analyzer.vmaf import VMAFAnalyzer
@@ -265,7 +265,6 @@ class PlayerComposer:
                 BandwidthABRController,
                 HybridABRController,
                 FixedABRController,
-                ABR360HeadMovement,
             ],
             single_initializer,
             "Adaptive Bitrate Controller",
@@ -279,7 +278,7 @@ class PlayerComposer:
         self.register_module("player", [DASHPlayer], single_initializer, "Headless DASH Streamer", False, "dash_player")
         self.register_module(
             "analyzer",
-            [PlaybackAnalyzer, FileContentListener, Playback, Playback_pc, EventLogger, PlaybackV2, VMAFAnalyzer, NetworkManager],
+            [PlaybackAnalyzer, FileContentListener, Playback_pc, EventLogger, PlaybackV2, VMAFAnalyzer, NetworkManager],
             multi_initializer,
             "Analyzers",
             False,
