@@ -62,7 +62,7 @@ Each step includes its own configuration file for customization.
 3. Generate DASH Manifest (MPD): Navigate to the `./dash-packager` directory, update `config.json` with dataset characteristics, particularly ensuring bitrate levels are correctly inserted based on your encoded dataset, and sorted from lowest to highest, then run:
 
     ```bash
-    # Create DVV Segments
+    # Generate MPD File
     python mpd-generator.py
     ```
 
