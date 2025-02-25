@@ -11,7 +11,7 @@ We provide two options for running VV-DASH:
 
 1. Using self-contained Docker images from Docker Hub
     - This option allows for easy integration with no dataset preparation required.
-    - A sample dataset (Longdress from 8i VFB) is already downloaded, encoded, DASH-packaged, and included in the server Docker image.
+    - A sample dataset (Longdress from 8i VFB) is already downloaded, encoded (with Google Draco into 5 quality levels), DVV-segmented, DASH-packaged, and included in the server Docker image.
     - No build process is required.
     - However, it offers only a fixed configuration.
 2. Building from Dockerfiles
