@@ -1,4 +1,4 @@
-# vv-dash
+# VV-DASH
 
 VV-DASH is a framework for volumetric video (dynamic point clouds) adaptive streaming over DASH. It encapsulates the entire streaming setup, from preparing the dataset (encoding into a bitrate ladder and DASH packaging) to streaming over an actual emulated network and decoding on the client side. VV-DASH currently integrates Google Draco and MPEG-VPCC as encoder/decoder options.
 
