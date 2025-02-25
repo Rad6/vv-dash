@@ -98,7 +98,7 @@ COPY nginx.conf /usr/local/nginx/conf
 # COPY videos/phil-par/* /usr/local/nginx/html/phil/
 
 
-RUN mkdir /usr/local/nginx/html/longdress-vpcc/
+RUN mkdir /usr/local/nginx/html/longdress/
 COPY videos/longdress/* /usr/local/nginx/html/longdress/
 
 
