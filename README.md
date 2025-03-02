@@ -7,7 +7,7 @@ For a detailed overview of features and analysis, please refer to the paper: [ht
 
 ## How to Run
 
-We provide two options for running VV-DASH:
+We provide two options for running VV-DASH (Both Tested on Ubuntu 22):
 
 1. Using self-contained Docker images from Docker Hub
     - This option allows for easy integration with no dataset preparation required.
