@@ -87,7 +87,7 @@ class Playback_pc(
         scheduler.add_listener(self)
         self.player_module = player
         # self.decoder_pool = ThreadPoolExecutor(max_workers=10)
-        self.fps = 0
+        self.fps = None
         self.dump_results_path = join(config.run_dir, "data") if config.run_dir else None
         self.manager = multiprocessing.Manager()
         self.time_intervals = self.manager.list()
@@ -113,7 +113,7 @@ class Playback_pc(
 
     async def cleanup(self) -> None:
         self.log.info(f"Closing decoder")
-        self.calc_total_time()
+        # self.calc_total_time()
         # self.decoder_task.cancel()
         self.log.info("Closing video")
         self.player_task.cancel()
@@ -148,10 +148,11 @@ class Playback_pc(
     async def on_segment_download_complete(self, index: int, segments: Dict[int, Segment]):
         assert len(segments) == 1, f"Can play only 1 stream. Found {len(segments)}"
 
-        print(self.mpd_provider.mpd.adaptation_sets[1].representations[1].codecs)
-        print(type(self.mpd_provider.mpd.adaptation_sets[1].representations[1].codecs))
+        # print(self.mpd_provider.mpd.adaptation_sets[1].representations[1].codecs)
         if self.mpd_provider.mpd.adaptation_sets[1].representations[1].codecs == "DRCO":
             timescale, frames = parse_drv(BytesIO(self.segment_data[list(segments.values())[0].url]))
+            # if self.fps == None:
+            #     self.fps = int(timescale / min(frames, key=frames.get))
             procs = []
             for pts, frame in frames.items():
                 p = multiprocessing.Process(target=self.decoder, args=(index, pts, frame, ))
@@ -159,6 +160,7 @@ class Playback_pc(
                 procs.append(p)
             for p in procs:
                 p.join()
+            print(f"decoded {len(frames)} frames")
         elif self.mpd_provider.mpd.adaptation_sets[1].representations[1].codecs == "VPCC":
             frame_rate = self.mpd_provider.mpd.adaptation_sets[1].frame_rate.split("/")
 
@@ -229,12 +231,12 @@ class Playback_pc(
         pts,
         frame_content
     ):
-        print("IN DECODER")
+        # print("IN DECODER")
         # TODO: check the current playback position before decoding, to make sure you are not decoding sth that is behind
 
         decoded_frame = DracoPy.decode(frame_content)
-        print(f"DECODED FRAME {pts}")
-        self.frame_buffer.put((index, pts, decoded_frame, "DRCO"))
+        # print(f"DECODED FRAME at {pts} PTS")
+        # self.frame_buffer.put((index, pts, decoded_frame, "DRCO"))
         # print("DECODED WITH PID: " + str(os.getpid()))
         
 
