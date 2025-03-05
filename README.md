@@ -103,7 +103,7 @@ entrypoint: ["iplay", "-h"]
 ```
 
 ### Build and Run:
-Once all configurations are set according to your experiment, build the three modules with:
+Once all configurations are set according to your experiment, comment out the `image` tags in the [compose.yaml](compose.yaml) and uncomment the `build` tags instead, and then build the three modules with:
 
 ```bash
 # Build all modules

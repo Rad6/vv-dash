@@ -12,26 +12,11 @@ services:
     # build: istream-player
     # entrypoint: ["iplay", "-h"]
     entrypoint: ["iplay", "-i", "http://ha-proxy/longdress/output.mpd", "--mod_abr", "bandwidth", "--mod_analyzer", "data_collector"]
-    # deploy: 
-    #   mode: replicated
-    #   replicas: 2
-    # command:
-      # - "sh"
-      # - "-c"
-      # - | 
-      #   curl --retry 10 -f --retry-all-errors --retry-delay 1 \
-      #   -v -o /dev/null http://edge-server/health && \
-      #   iplay -i http://dash-server/Aspen/output.mpd --run_dir run-dir --mod_abr hybrid --mod_analyzer file_saver
-    # ports:
-    #   - "4040:80"
     depends_on:
       - dash-server
       - ha-proxy
     networks:
       mynetwork:
-    # volumes:
-    #   - ~/your/local/directory:/src/run-dir:rw
-    #   - ~/your/local/directory:/src/plot-dir:rw
   ha-proxy:
     image: hadirad/vvdash-haproxy:latest
     # build: ha-proxy
