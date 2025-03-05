@@ -2,3 +2,5 @@
 
 dash-server/videos/*
 !dash-server/videos/.gitkeep
+
+encoded
