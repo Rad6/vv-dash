@@ -1,7 +1,8 @@
 import os
 import subprocess
 import json
-from multiprocessing import Process
+import time
+from multiprocessing import Process, cpu_count
 
 def run_command(cmd):
     result = subprocess.run(cmd, stdout=subprocess.PIPE)
@@ -28,13 +29,22 @@ def main():
     output_folder = config["output_folder"]
     
     os.makedirs(output_folder, exist_ok=True)  # Ensure output directory exists
-    
+
+    max_processes = cpu_count() or 1  # Maximum number of concurrent processes
     processes = []
 
-    # Prepare and start all the processes
     for rate_id, params in encoding_parameters.items():
         for frame in range(start_frame, start_frame + frame_count):
             cmd = create_command(rate_id, params, frame, start_frame, video_path, frame_naming_template, output_folder)
+            
+            # Limit the number of concurrent processes
+            while len(processes) >= max_processes:
+                for p in processes.copy():
+                    if not p.is_alive():
+                        p.join()
+                        processes.remove(p)
+                time.sleep(0.1)  # Avoid busy waiting
+
             p = Process(target=run_command, args=(cmd,))
             p.start()
             processes.append(p)
