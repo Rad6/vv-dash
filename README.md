@@ -119,7 +119,7 @@ bash run.sh
 
 
 ## Reference
-If you wish to use VV-DASH in your research work, we kindly ask you to cite it using the reference below:
+If you wish to use VV-DASH in your research, we kindly request that you cite it using the reference below:
 ```bibtex
 @inproceedings{Heidarirad2025VVDASH,
   author    = {Heidarirad, Hadi and Wang, Mea},
