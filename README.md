@@ -117,3 +117,22 @@ Then run your experiment:
 bash run.sh
 ```
 
+
+## Reference
+If you wish to use VV-DASH in your research, we kindly request that you cite it using the reference below:
+```bibtex
+@inproceedings{Heidarirad2025VVDASH,
+  author    = {Heidarirad, Hadi and Wang, Mea},
+  title     = {VV-DASH: A Framework for Volumetric Video DASH Streaming},
+  booktitle = {Proceedings of the 16th ACM Multimedia Systems Conference},
+  year      = {2025},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  location  = {Stellenbosch, South Africa},
+  series    = {MMSys '25},
+  doi       = {10.1145/3712676.3718339},
+  url       = {https://doi.org/10.1145/3712676.3718339}
+}
+
+
+```
